@@ -771,6 +771,7 @@ init([Options]) ->
 
 maybe_rand_id(v5, ?NO_CLIENT_ID) -> ?NO_CLIENT_ID;
 maybe_rand_id(_, ?NO_CLIENT_ID) -> random_client_id();
+maybe_rand_id(_, undefined) -> random_client_id();
 maybe_rand_id(_, ID) -> ID.
 
 random_client_id() ->
@@ -1154,6 +1155,7 @@ waiting_for_connack(cast, {?CONNACK_PACKET(?RC_SUCCESS,
     Retry = [{next_event, info, immediate_retry} || not emqtt_inflight:is_empty(Inflight1)],
     case take_call(call_id(connect, Via), State4) of
         {value, #call{from = From}, State5} ->
+            ok = eval_msg_handler(State5, connected, Properties),
             {next_state, connected, State5, [{reply, From, Reply} | Retry]};
         false ->
             %% unkown caller, internally initiated re-connect
@@ -1576,10 +1578,12 @@ handle_event(info, {tcp_closed, Sock} = Event, StateName, #state{socket = SockIn
 
 handle_event(info, {Closed, _Sock}, connected, State) when ?SOCK_CLOSED(Closed) ->
     ?LOG(info, "socket_closed_when_connected", #{}, State),
+    eval_msg_handler(State, disconnected, {disconnected, 402, noprops}),
     maybe_reconnect(Closed, State);
 
 handle_event(info, {Closed, _Sock}, waiting_for_connack, State) when ?SOCK_CLOSED(Closed) ->
     ?LOG(info, "socket_closed_before_connack", #{}, State),
+    eval_msg_handler(State, disconnected, {disconnected, 402, noprops}),
     maybe_reconnect(Closed, State);
 
 handle_event(info, {Closed, Sock}, StateName, State)
@@ -2306,6 +2310,7 @@ reason_code_name(_Code) -> unknown_error.
 enter_reconnect(Reason, State) ->
     enter_reconnect(Reason, State, []).
 enter_reconnect(Reason, #state{reconnect = Cnt, reconnect_timeout = Timeout} = State, Actions) ->
+    eval_msg_handler(State, disconnected, {disconnected, 402, noprops}),
     EventContent = #{retry_cnt => Cnt, reason => Reason},
     {next_state, reconnect, prepare_reconnect(State),
         [{state_timeout, Timeout, EventContent} | Actions]}.
