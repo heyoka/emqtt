@@ -362,7 +362,8 @@
                          E =:= quic_closed)).
 
 -define(LOG(Level, Msg, Meta, State),
-        ?SLOG(Level, (begin Meta end)#{msg => Msg, clientid => State#state.clientid}, #{})).
+        lager:Level("~p", [(begin Meta end)#{msg => Msg, clientid => State#state.clientid}])).
+%%        ?SLOG(Level, (begin Meta end)#{msg => Msg, clientid => State#state.clientid}, #{})).
 
 %%--------------------------------------------------------------------
 %% API
@@ -656,6 +657,7 @@ status(Client) ->
 
 -spec(disconnect(client()) -> ok | {error, any()}).
 disconnect(Client) ->
+  lager:info("mqtt client ~p disconnect",[Client]),
     disconnect(Client, ?RC_SUCCESS).
 
 -spec(disconnect(client(), reason_code()) -> ok | {error, any()}).
@@ -896,7 +898,8 @@ init([{reconnect, Reconnect} | Opts], State)
   when is_integer(Reconnect) orelse Reconnect == infinity ->
     init(Opts, State#state{reconnect = Reconnect});
 init([{reconnect_timeout, I} | Opts], State) ->
-    init(Opts, State#state{reconnect_timeout = timer:seconds(I)});
+%%    init(Opts, State#state{reconnect_timeout = timer:seconds(I)});
+    init(Opts, State#state{reconnect_timeout = I});
 init([{low_mem, IsLow} | Opts], State) when is_boolean(IsLow) ->
     init(Opts, State#state{low_mem = IsLow});
 init([{nst, Ticket} | Opts], State = #state{sock_opts = SockOpts}) when is_binary(Ticket) ->
@@ -1046,6 +1049,7 @@ do_connect(ConnMod, #state{pending_calls = Pendings,
                     %% Failed to send CONNECT packet.
                     %% wait for the async socket close or error event
                     {ok, State3}
+
             end;
         {error, econnreset} ->
             %% TODO: handle econnreset.
