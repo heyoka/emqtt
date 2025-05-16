@@ -362,8 +362,7 @@
                          E =:= quic_closed)).
 
 -define(LOG(Level, Msg, Meta, State),
-        lager:Level("~p", [(begin Meta end)#{msg => Msg, clientid => State#state.clientid}])).
-%%        ?SLOG(Level, (begin Meta end)#{msg => Msg, clientid => State#state.clientid}, #{})).
+        ?SLOG(Level, (begin Meta end)#{msg => Msg, clientid => State#state.clientid}, #{})).
 
 %%--------------------------------------------------------------------
 %% API
@@ -657,7 +656,6 @@ status(Client) ->
 
 -spec(disconnect(client()) -> ok | {error, any()}).
 disconnect(Client) ->
-  lager:info("mqtt client ~p disconnect",[Client]),
     disconnect(Client, ?RC_SUCCESS).
 
 -spec(disconnect(client(), reason_code()) -> ok | {error, any()}).
@@ -773,7 +771,6 @@ init([Options]) ->
 
 maybe_rand_id(v5, ?NO_CLIENT_ID) -> ?NO_CLIENT_ID;
 maybe_rand_id(_, ?NO_CLIENT_ID) -> random_client_id();
-maybe_rand_id(_, undefined) -> random_client_id();
 maybe_rand_id(_, ID) -> ID.
 
 random_client_id() ->
@@ -898,8 +895,7 @@ init([{reconnect, Reconnect} | Opts], State)
   when is_integer(Reconnect) orelse Reconnect == infinity ->
     init(Opts, State#state{reconnect = Reconnect});
 init([{reconnect_timeout, I} | Opts], State) ->
-%%    init(Opts, State#state{reconnect_timeout = timer:seconds(I)});
-    init(Opts, State#state{reconnect_timeout = I});
+    init(Opts, State#state{reconnect_timeout = timer:seconds(I)});
 init([{low_mem, IsLow} | Opts], State) when is_boolean(IsLow) ->
     init(Opts, State#state{low_mem = IsLow});
 init([{nst, Ticket} | Opts], State = #state{sock_opts = SockOpts}) when is_binary(Ticket) ->
@@ -1049,7 +1045,6 @@ do_connect(ConnMod, #state{pending_calls = Pendings,
                     %% Failed to send CONNECT packet.
                     %% wait for the async socket close or error event
                     {ok, State3}
-
             end;
         {error, econnreset} ->
             %% TODO: handle econnreset.
@@ -1159,7 +1154,6 @@ waiting_for_connack(cast, {?CONNACK_PACKET(?RC_SUCCESS,
     Retry = [{next_event, info, immediate_retry} || not emqtt_inflight:is_empty(Inflight1)],
     case take_call(call_id(connect, Via), State4) of
         {value, #call{from = From}, State5} ->
-            ok = eval_msg_handler(State5, connected, Properties),
             {next_state, connected, State5, [{reply, From, Reply} | Retry]};
         false ->
             %% unkown caller, internally initiated re-connect
@@ -1582,12 +1576,10 @@ handle_event(info, {tcp_closed, Sock} = Event, StateName, #state{socket = SockIn
 
 handle_event(info, {Closed, _Sock}, connected, State) when ?SOCK_CLOSED(Closed) ->
     ?LOG(info, "socket_closed_when_connected", #{}, State),
-    eval_msg_handler(State, disconnected, {disconnected, 402, noprops}),
     maybe_reconnect(Closed, State);
 
 handle_event(info, {Closed, _Sock}, waiting_for_connack, State) when ?SOCK_CLOSED(Closed) ->
     ?LOG(info, "socket_closed_before_connack", #{}, State),
-    eval_msg_handler(State, disconnected, {disconnected, 402, noprops}),
     maybe_reconnect(Closed, State);
 
 handle_event(info, {Closed, Sock}, StateName, State)
@@ -2314,7 +2306,6 @@ reason_code_name(_Code) -> unknown_error.
 enter_reconnect(Reason, State) ->
     enter_reconnect(Reason, State, []).
 enter_reconnect(Reason, #state{reconnect = Cnt, reconnect_timeout = Timeout} = State, Actions) ->
-    eval_msg_handler(State, disconnected, {disconnected, 402, noprops}),
     EventContent = #{retry_cnt => Cnt, reason => Reason},
     {next_state, reconnect, prepare_reconnect(State),
         [{state_timeout, Timeout, EventContent} | Actions]}.
