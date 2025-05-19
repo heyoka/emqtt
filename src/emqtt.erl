@@ -657,7 +657,6 @@ status(Client) ->
 
 -spec(disconnect(client()) -> ok | {error, any()}).
 disconnect(Client) ->
-  lager:info("mqtt client ~p disconnect",[Client]),
     disconnect(Client, ?RC_SUCCESS).
 
 -spec(disconnect(client(), reason_code()) -> ok | {error, any()}).
@@ -866,9 +865,9 @@ init([{will_retain, Retain} | Opts], State = #state{will_msg = WillMsg}) ->
 init([{will_qos, QoS} | Opts], State = #state{will_msg = WillMsg}) ->
     init(Opts, State#state{will_msg = init_will_msg({qos, QoS}, WillMsg)});
 init([{connect_timeout, Timeout}| Opts], State) ->
-    init(Opts, State#state{connect_timeout = timer:seconds(Timeout)});
+    init(Opts, State#state{connect_timeout = Timeout});
 init([{ack_timeout, Timeout}| Opts], State) ->
-    init(Opts, State#state{ack_timeout = timer:seconds(Timeout)});
+    init(Opts, State#state{ack_timeout = Timeout});
 init([force_ping | Opts], State) ->
     init(Opts, State#state{force_ping = true});
 init([{force_ping, ForcePing} | Opts], State) when is_boolean(ForcePing) ->
@@ -884,7 +883,7 @@ init([auto_ack | Opts], State) ->
 init([{auto_ack, AutoAck} | Opts], State) when is_atom(AutoAck) ->
     init(Opts, State#state{auto_ack = AutoAck});
 init([{retry_interval, I} | Opts], State) ->
-    init(Opts, State#state{retry_interval = timer:seconds(I)});
+    init(Opts, State#state{retry_interval = I});
 init([{bridge_mode, Mode} | Opts], State) when is_boolean(Mode) ->
     init(Opts, State#state{bridge_mode = Mode});
 %% prior to 1.7.0, reconnect was of type boolean().
@@ -898,7 +897,6 @@ init([{reconnect, Reconnect} | Opts], State)
   when is_integer(Reconnect) orelse Reconnect == infinity ->
     init(Opts, State#state{reconnect = Reconnect});
 init([{reconnect_timeout, I} | Opts], State) ->
-%%    init(Opts, State#state{reconnect_timeout = timer:seconds(I)});
     init(Opts, State#state{reconnect_timeout = I});
 init([{low_mem, IsLow} | Opts], State) when is_boolean(IsLow) ->
     init(Opts, State#state{low_mem = IsLow});
